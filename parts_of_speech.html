@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Parts of Speech Highlighter< (by Ehsan Jelodar)</title>
+  <!--<script src="https://unpkg.com/compromise"></script>-->
+  <!-- https://unpkg.com/compromise@14.14.4/builds/compromise.js -->
+  <script type="text/javascript" src="compromise.js"> </script>
+   
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    #editor {
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 150px;
+      width: 100%;
+      max-width: 600px;
+      font-size: 16px;
+      outline: none;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .pos {
+      padding: 1px 3px;
+      border-radius: 3px;
+      display: inline-block;
+      margin-top: 2px;
+     /* position: relative;*/
+      cursor: pointer;
+    }
+
+    /* Shared color classes */
+    .noun        { background-color: #cccccc; color: #000000; }
+    .pronoun     { background-color: #ff96b8; color: #000000; }
+    .adjective   { background-color: #ffa1ef; color: #000000; }
+    .verb        { background-color: #9aff85; color: #000000; }
+    .adverb      { background-color: #75ffb1; color: #000000; }
+    .preposition { background-color: #9BF6FF; color: #000000; }
+    .conjunction { background-color: #BDB2FF; color: #000000; }
+    .interjection{ background-color: #ff9d44; color: #000000; }
+    .other       { background-color: #f8ff09; color: #000000; }
+
+    #legend {
+      max-width: 600px;
+      font-size: 14px;
+      margin-top: 15px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      margin-right: 12px;
+      margin-top: 6px;
+    }
+
+    .color-box {
+      width: 16px;
+      height: 16px;
+      margin-right: 6px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+    #editor:empty::before {
+      content: attr(placeholder);
+      color: #aaa;
+    }
+    .custom-tooltip {
+      position: absolute;
+      background: #333;
+      color: #fff;
+      padding: 7px 12px;
+      border-radius: 5px;
+      font-size: 14px;
+      z-index: 1000;
+      pointer-events: none;
+      display: none;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      transition: opacity 0.15s;
+      opacity: 0;
+    }
+    .custom-tooltip.active {
+      display: block;
+      opacity: 1;
+    }
+    #container
+    {
+      max-width: 600px;
+      margin: 0 auto;
+
+    }
+  </style>
+</head>
+<body>
+
+<div id="container">
+  
+  <h2>Parts of Speech Highlighter (by Ehsan Jelodar)</h2>
+
+  <div id="editor" contenteditable="true" spellcheck="false"></div>
+
+  <div id="legend">
+    <strong>Color Legend:</strong><br>
+    <div class="legend-item"><div class="color-box noun"></div> Noun</div>
+    <div class="legend-item"><div class="color-box pronoun"></div> Pronoun</div>
+    <div class="legend-item"><div class="color-box adjective"></div> Adjective</div>  
+    <div class="legend-item"><div class="color-box verb"></div> Verb</div>
+    <div class="legend-item"><div class="color-box adverb"></div> Adverb</div>
+    <div class="legend-item"><div class="color-box preposition"></div> Preposition</div>
+    <div class="legend-item"><div class="color-box conjunction"></div> Conjunction</div>
+    <div class="legend-item"><div class="color-box interjection"></div> Interjection</div>
+    <div class="legend-item"><div class="color-box other"></div> other</div>
+  </div>
+
+
+    <div>
+      <p>There are <strong>eight main parts of speech</strong> in English:</p>
+
+
+      <ul>
+      <li><p><strong>Nouns</strong> – names of people, places, things, or ideas (e.g., <em>dog, city, happiness</em>)</p>
+      </li>
+      <li><p><strong>Pronouns</strong> – words that replace nouns (e.g., <em>he, she, it, they</em>)</p>
+      </li>
+      <li><p><strong>Verbs</strong> – words that express actions or states (e.g., <em>run, is, think</em>)</p>
+      </li>
+      <li><p><strong>Adjectives</strong> – words that describe nouns or pronouns (e.g., <em>happy, blue, tall</em>)</p>
+      </li>
+      <li><p><strong>Adverbs</strong> – words that describe verbs, adjectives, or other adverbs (e.g., <em>quickly, very, well</em>)</p>
+      </li>
+      <li><p><strong>Prepositions</strong> – words that show relationships between nouns (e.g., <em>in, on, by</em>)</p>
+      </li>
+      <li><p><strong>Conjunctions</strong> – words that join words, phrases, or clauses (e.g., <em>and, but, because</em>)</p>
+      </li>
+      <li><p><strong>Interjections</strong> – words or phrases that express emotion (e.g., <em>wow, oh, ouch</em>)</p>
+      </li>
+      </ul>
+    </div>
+
+</div>
+
+<script>
+  const editor = document.getElementById('editor');
+  /*
+  const posMap = {
+    Noun: 'noun',
+    Pronoun: 'pronoun',
+    Adjective: 'adjective',
+    Verb: 'verb',
+    Adverb: 'adverb',
+    Preposition: 'preposition',
+    Conjunction: 'conjunction',
+    Interjection: 'interjection',
+    Other: 'other',
+  };
+  */
+
+const pennToCategory = {
+  // Nouns
+  NN: 'noun', NNS: 'noun', NNP: 'noun', NNPS: 'noun',
+
+  // Pronouns
+  PRP: 'pronoun', PRP$: 'pronoun', WP: 'pronoun', WP$: 'pronoun', EX: 'pronoun',
+
+  // Adjectives
+  JJ: 'adjective', JJR: 'adjective', JJS: 'adjective', PDT: 'adjective',
+
+  // Verbs
+  VB: 'verb', VBD: 'verb', VBG: 'verb', VBN: 'verb', VBP: 'verb', VBZ: 'verb', MD: 'verb',
+
+  // Adverbs
+  RB: 'adverb', RBR: 'adverb', RBS: 'adverb', WRB: 'adverb',
+
+  // Prepositions
+  IN: 'preposition', TO: 'preposition',
+
+  // Conjunctions
+  CC: 'conjunction',  // 'IN' is already in prepositions
+
+  // Interjections
+  UH: 'interjection',
+
+  // Other (optional catch-all)
+  DT: 'other', WDT: 'other', LS: 'other', FW: 'other', POS: 'other',
+  RP: 'other', SYM: 'other', CD: 'other'
+};
+
+  // Tooltip element will be created by JS 
+
+  document.body.addEventListener('click', function(e) { //(opt)
+    const el = e.target.closest('[data-tooltip]');
+    if (el) {
+      showTooltip(el, e);
+      setTimeout(() => { hideTooltip();}, 1500);
+    }
+  });
+
+  // Event delegation for mouseenter and mouseleave
+  document.body.addEventListener('mouseover', function(e) {
+    const el = e.target.closest('[data-tooltip]');
+    if (el) {
+      showTooltip(el, e);
+    }
+  });
+  document.body.addEventListener('mousemove', function(e) {
+    const el = e.target.closest('[data-tooltip]');
+    if (el && tooltip.classList.contains('active')) {
+      showTooltip(el, e);
+    }
+  });
+
+  document.body.addEventListener('mouseout', function(e) {
+    const el = e.target.closest('[data-tooltip]');
+    if (el) {
+      hideTooltip();
+    }
+  });
+
+    // Create tooltip element
+    const tooltip = document.createElement('div');
+    tooltip.className = 'custom-tooltip';
+    document.body.appendChild(tooltip);
+
+  // Helper functions
+  function showTooltip(el, event) {
+    tooltip.textContent = el.getAttribute('data-tooltip');
+    tooltip.classList.add('active');
+    const tooltipRect = tooltip.getBoundingClientRect();
+    tooltip.style.top = `${event.clientY + 16 + window.scrollY}px`;
+    tooltip.style.left = `${event.clientX - tooltipRect.width / 2 + window.scrollX}px`;
+  }
+
+
+    function hideTooltip() {
+      tooltip.classList.remove('active');
+    }
+
+    // Attach events to all elements with data-tooltip
+    document.querySelectorAll('[data-tooltip]').forEach(el => {
+      el.addEventListener('mouseenter', () => showTooltip(el));
+      el.addEventListener('mouseleave', hideTooltip);
+      el.addEventListener('mousemove', (e) => {
+        // Optional: Move tooltip with mouse
+        const tooltipRect = tooltip.getBoundingClientRect();
+        tooltip.style.top = `${e.clientY + 16 + window.scrollY}px`;
+        tooltip.style.left = `${e.clientX - tooltipRect.width / 2 + window.scrollX}px`;
+      });
+    });
+  // Tooltip element will be created by JS 
+
+
+  function sanitize(text) {
+    return text.replace(/&/g, "&amp;")
+               .replace(/</g, "&lt;")
+               .replace(/>/g, "&gt;");
+  }
+
+
+  function detectAllTags(word) {
+    const doc = nlp(word);
+    doc.compute('penn'); //(opt) Apply Penn Treebank POS tagging
+    const term = doc.terms().json()[0];
+    if (term && term.terms.length > 0) {
+        const pennTag = term.terms[0].penn;
+        let tags = term.terms[0].tags
+       // console.log(word, tags, pennTag); /// 👈 debug
+       return {tag: tags || [], class: pennToCategory[pennTag] || ''};
+    }
+    return {tag: [], class: ''};
+}
+
+  function highlightText(rawText) {
+  return rawText
+    .split(/\n/)
+    .map(line => //line
+      {
+        //if (line.trim() === '')  return ''; // Handle empty lines
+      return line
+        .split(/(\s+)/)
+        .map(word => {
+          if (/^\s+$/.test(word)) return word;
+
+          const object = detectAllTags(word);
+          const firstClass = object.class;  //tags.find(tag => posMap[tag]) || '';
+          const tagTooltip = object.tag.join(', ');
+
+          if (firstClass) {
+            return `<span data-tooltip="${tagTooltip} (${firstClass})" class="pos ${firstClass}" >${sanitize(word)}</span>`;
+          } else {
+            return `<span title="${tagTooltip}">${sanitize(word)}</span>`;
+          }
+        })
+        .join('')
+    }).join('<br>');
+}
+
+  function getCaretOffset(element) {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return 0;
+    const range = selection.getRangeAt(0);
+    const preRange = range.cloneRange();
+    preRange.selectNodeContents(element);
+    preRange.setEnd(range.endContainer, range.endOffset);
+    return preRange.toString().length;
+  }
+
+  function setCaretOffset(element, offset) {
+    const range = document.createRange();
+    const selection = window.getSelection();
+    let currentOffset = 0;
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
+
+    let node;
+    while ((node = walker.nextNode())) {
+      const length = node.textContent.length;
+      if (currentOffset + length >= offset) {
+        range.setStart(node, offset - currentOffset);
+        break;
+      }
+      currentOffset += length;
+    }
+
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function updateEditor() {
+    const caret = getCaretOffset(editor);
+    const plainText = editor.innerText;
+    const highlighted = highlightText(plainText);
+    editor.innerHTML = highlighted || '<br>'; // prevent empty editor collapse
+    setCaretOffset(editor, caret);
+  }
+
+  editor.addEventListener('input', updateEditor);
+
+  editor.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+      const br = document.createElement("br");
+      range.deleteContents();
+      range.insertNode(br);
+
+      // Ensure the caret goes after the <br>
+      const newRange = document.createRange();
+      newRange.setStartAfter(br);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+
+    }
+
+    if (e.key === 'Backspace') {
+      const selection = window.getSelection();
+      if (selection.rangeCount === 0) return;
+
+      const range = selection.getRangeAt(0);
+      if (range.startOffset === 0 && range.startContainer.nodeType === Node.TEXT_NODE) {
+        const prev = range.startContainer.previousSibling;
+        if (prev && prev.nodeName === 'BR') {
+          e.preventDefault();
+          prev.remove();
+          updateEditor();
+        }
+      }
+    }
+  });
+</script>
+
+</body>
+</html>
